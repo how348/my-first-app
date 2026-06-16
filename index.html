@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DelishKitchen Plus - スマート料理＆献立アプリ</title>
+    
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel CDN (For JSX compilation in browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* スクロールバー非表示用のカスタムユーティリティ */
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-amber-50/40 text-slate-800 font-sans antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- SVGアイコンコンポーネント群 ---
+        const Icons = {
+            Search: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+            BookOpen: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
+            Calendar: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>,
+            ShoppingBag: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>,
+            Plus: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+            Clock: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
+            Check: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20 6 9 17l-5-5"/></svg>,
+            ChevronRight: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m9 18 6-6-6-6"/></svg>,
+            Volume2: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>,
+            Flame: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
+            Utensils: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v2"/><path d="M21 15V2v0a5 5 0 0 0-5 5v8"/><path d="M12 15v7"/><path d="M18 15v7"/><path d="M6 15v7"/></svg>,
+            Trash2: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
+            PlusCircle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>,
+            MinusCircle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+            RotateCcw: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
+            Play: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="6 3 20 12 6 21 6 3"/></svg>,
+            Pause: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>,
+            Heart: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>,
+            Sparkles: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
+            Edit3: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        };
+
+        // 初期レシピデータ (和食、洋食、中華、スイーツなど)
+        const INITIAL_RECIPES = [
+          {
+            id: 'rec-1',
+            title: '黄金比率のふわとろ肉じゃが',
+            category: '和食',
+            description: '定番の肉じゃがを、味がしっかり染み込む黄金比率の調味料で。じゃがいもがホクホクに仕上がります。',
+            prepTime: 25,
+            difficulty: '簡単',
+            calories: 340,
+            servings: 2,
+            image: 'https://images.unsplash.com/photo-1604152135912-04a022e23696?auto=format&fit=crop&q=80&w=600',
+            ingredients: [
+              { name: '牛薄切り肉 (または豚肉)', amount: 150, unit: 'g' },
+              { name: 'じゃがいも (男爵)', amount: 3, unit: '個' },
+              { name: '玉ねぎ', amount: 1, unit: '個' },
+              { name: 'にんじん', amount: 0.5, unit: '本' },
+              { name: '醤油', amount: 2, unit: '大さじ' },
+              { name: 'みりん', amount: 2, unit: '大さじ' },
+              { name: '砂糖', amount: 1.5, unit: '大さじ' },
+              { name: 'だし汁', amount: 200, unit: 'ml' }
+            ],
+            steps: [
+              { text: 'じゃがいもは一口大に切って水にさらし、玉ねぎは1cm幅のくし切り、にんじんは乱切りにします。', duration: 300 },
+              { text: '鍋に油を熱し、牛肉を中火で炒め、色が変わったら野菜を加えてさらに全体に油が回るまで炒めます。', duration: 180 },
+              { text: 'だし汁、砂糖、みりんを加え、落とし蓋をして中火で約10分煮込みます。', duration: 600 },
+              { text: '醤油を加え、さらに弱火で10分、水分が少なくなってじゃがいもにスッと竹串が通るまで煮含めます。', duration: 600 }
+            ],
+            isFavorite: true
+          },
+          {
+            id: 'rec-2',
+            title: '濃厚クリーミー明太子パスタ',
+            category: '洋食',
+            description: '生クリームとバターのコクに明太子のピリ辛さが絶妙にマッチ。15分で作れる本格パスタ。',
+            prepTime: 15,
+            difficulty: '簡単',
+            calories: 520,
+            servings: 1,
+            image: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&q=80&w=600',
+            ingredients: [
+              { name: 'スパゲティ (1.6mm)', amount: 100, unit: 'g' },
+              { name: '辛子明太子', amount: 1, unit: '腹' },
+              { name: '生クリーム', amount: 50, unit: 'ml' },
+              { name: '無塩バター', amount: 15, unit: 'g' },
+              { name: '牛乳', amount: 20, unit: 'ml' },
+              { name: '刻み海苔・大葉', amount: 1, unit: '適量' }
+            ],
+            steps: [
+              { text: 'たっぷりのお湯に1%の塩（分量外）を入れ、スパゲティを表示時間より1分短めに茹で始めます。', duration: 420 },
+              { text: '茹でている間に、ボウルにほぐした明太子、生クリーム、牛乳、常温に戻したバターを混ぜ合わせておきます。', duration: 120 },
+              { text: 'パスタが茹で上がったら、お湯を切り、すぐに用意したボウルに加えて手早く和えます。', duration: 60 },
+              { text: 'お皿に盛り付け、刻み海苔とお好みの細切り大葉を天盛りにしたら完成です。', duration: 60 }
+            ],
+            isFavorite: false
+          },
+          {
+            id: 'rec-3',
+            title: 'パラパラ五目レタスチャーハン',
+            category: '中華',
+            description: '強火で一気に仕上げる、町中華のような本格チャーハン。レタスのシャキシャキ感がアクセント。',
+            prepTime: 10,
+            difficulty: '普通',
+            calories: 480,
+            servings: 2,
+            image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&q=80&w=600',
+            ingredients: [
+              { name: '温かいご飯', amount: 400, unit: 'g' },
+              { name: '卵', amount: 2, unit: '個' },
+              { name: 'チャーシュー (細切れ)', amount: 80, unit: 'g' },
+              { name: '長ネギ', amount: 0.5, unit: '本' },
+              { name: 'レタス', amount: 2, unit: '枚' },
+              { name: 'ごま油', amount: 1, unit: '大さじ' },
+              { name: '鶏ガラスープの素', amount: 1, unit: '小さじ' },
+              { name: '塩・コショウ', amount: 1, unit: '少々' },
+              { name: '醤油', amount: 1, unit: '小さじ' }
+            ],
+            steps: [
+              { text: '長ネギはみじん切り、レタスは大きめの一口大にちぎり、卵はボウルに溶きほぐしておきます。', duration: 120 },
+              { text: 'フライパンにごま油を強火でよく熱し、溶き卵を一気に入れ、すぐに温かいご飯を加えて切るように炒めます。', duration: 90 },
+              { text: 'ご飯がパラパラになってきたら、チャーシューと長ネギ、鶏ガラスープの素、塩、コショウを加えて炒め合わせます。', duration: 120 },
+              { text: '最後にレタスを加え、醤油を鍋肌から回し入れ、全体を大きく1〜2回煽るようにさっと炒めて火を止めます。', duration: 45 }
+            ],
+            isFavorite: false
+          },
+          {
+            id: 'rec-4',
+            title: 'サクふわフレンチトースト',
+            category: 'スイーツ',
+            description: 'じっくり一晩アパレイユを吸わせたようなリッチな食感。10分の浸し時間でも裏技でふんわり。',
+            prepTime: 20,
+            difficulty: '簡単',
+            calories: 290,
+            servings: 2,
+            image: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&q=80&w=600',
+            ingredients: [
+              { name: '食パン (4枚切り)', amount: 2, unit: '枚' },
+              { name: '卵', amount: 2, unit: '個' },
+              { name: '牛乳', amount: 150, unit: 'ml' },
+              { name: '砂糖', amount: 2, unit: '大さじ' },
+              { name: 'バニラエッセンス', amount: 3, unit: '滴' },
+              { name: 'バター', amount: 15, unit: 'g' },
+              { name: 'メープルシロップ・粉糖', amount: 1, unit: '適量' }
+            ],
+            steps: [
+              { text: '食パンは十字に4等分にカットします。耐熱ボウルに卵、砂糖、牛乳、バニラエッセンスを混ぜ合わせてロース。', duration: 180 },
+              { text: '食パンをアパレイユに浸し、電子レンジ(500W)でラップをせずに両面各30秒ずつ加熱すると、一気に液を吸い込みます。', duration: 120 },
+              { text: 'フライパンにバターを弱火で溶かし、パンを入れて蓋をし、綺麗な焼き色がつくまで3〜4分じっくり蒸し焼きにします。', duration: 240 },
+              { text: 'ひっくり返して裏面も同様に蓋をして2〜3分焼き、お皿に盛ってメープルシロップをお好みでかけます。', duration: 180 }
+            ],
+            isFavorite: true
+          }
+        ];
+
+        const WEEK_DAYS = ['月', '火', '水', '木', '金', '土', '日'];
+        const MEAL_TYPES = ['朝食', '昼食', '夕食'];
+
+        function App() {
+          const [recipes, setRecipes] = useState(() => {
+            const saved = localStorage.getItem('delish_recipes');
+            return saved ? JSON.parse(saved) : INITIAL_RECIPES;
+          });
+          
+          const [activeTab, setActiveTab] = useState('explore'); // 'explore' | 'favorites' | 'planner' | 'shopping' | 'create'
+          const [searchQuery, setSearchQuery] = useState('');
+          const [selectedCategory, setSelectedCategory] = useState('すべて');
+          const [selectedRecipe, setSelectedRecipe] = useState(null);
+          
+          // レシピ詳細関連のステート
+          const [scaleServings, setScaleServings] = useState(2);
+          const [activeStepIndex, setActiveStepIndex] = useState(0);
+          const [completedSteps, setCompletedSteps] = useState({});
+          
+          // タイマー関連ステート
+          const [timerDuration, setTimerDuration] = useState(0); // in seconds
+          const [timerRemaining, setTimerRemaining] = useState(0);
+          const [isTimerRunning, setIsTimerRunning] = useState(false);
+          const timerRef = useRef(null);
+          const audioContextRef = useRef(null);
+
+          // 1週間の献立プラン
+          const [mealPlan, setMealPlan] = useState(() => {
+            const saved = localStorage.getItem('delish_meal_plan');
+            return saved ? JSON.parse(saved) : {
+              '月': { '朝食': null, '昼食': null, '夕食': 'rec-1' },
+              '火': { '朝食': null, '昼食': null, '夕食': null },
+              '水': { '朝食': null, '昼食': null, '夕食': 'rec-3' },
+              '木': { '朝食': null, '昼食': null, '夕食': null },
+              '金': { '朝食': null, '昼食': null, '夕食': 'rec-2' },
+              '土': { '朝食': null, '昼食': null, '夕食': null },
+              '日': { '朝食': null, '昼食': null, '夕食': 'rec-4' },
+            };
+          });
+
+          // 買い物リスト
+          const [shoppingList, setShoppingList] = useState(() => {
+            const saved = localStorage.getItem('delish_shopping_list');
+            return saved ? JSON.parse(saved) : [
+              { id: 'shop-1', name: '牛薄切り肉', amount: '150g', checked: false },
+              { id: 'shop-2', name: 'じゃがいも', amount: '3個', checked: false },
+              { id: 'shop-3', name: '辛子明太子', amount: '1腹', checked: true }
+            ];
+          });
+          
+          const [newShoppingItem, setNewShoppingItem] = useState({ name: '', amount: '' });
+
+          // レシピ新規作成フォームのステート
+          const [newRecipe, setNewRecipe] = useState({
+            title: '',
+            category: '和食',
+            description: '',
+            prepTime: 15,
+            difficulty: '簡単',
+            calories: 300,
+            servings: 2,
+            image: '',
+            ingredients: [{ name: '', amount: '', unit: 'g' }],
+            steps: [{ text: '', duration: 120 }]
+          });
+
+          // 通知（Toast）メッセージ
+          const [toastMessage, setToastMessage] = useState('');
+
+          // 各種永続化
+          useEffect(() => {
+            localStorage.setItem('delish_recipes', JSON.stringify(recipes));
+          }, [recipes]);
+
+          useEffect(() => {
+            localStorage.setItem('delish_meal_plan', JSON.stringify(mealPlan));
+          }, [mealPlan]);
+
+          useEffect(() => {
+            localStorage.setItem('delish_shopping_list', JSON.stringify(shoppingList));
+          }, [shoppingList]);
+
+          const showToast = (message) => {
+            setToastMessage(message);
+            setTimeout(() => {
+              setToastMessage('');
+            }, 3000);
+          };
+
+          // リアルなアラーム通知音（Web Audio API）
+          const playBeep = () => {
+            try {
+              if (!audioContextRef.current) {
+                audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+              }
+              const ctx = audioContextRef.current;
+              if (ctx.state === 'suspended') {
+                ctx.resume();
+              }
+              
+              const playTone = (time, freq, dur) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(freq, time);
+                gain.gain.setValueAtTime(0.3, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + dur - 0.05);
+                osc.start(time);
+                osc.stop(time + dur);
+              };
+
+              const now = ctx.currentTime;
+              playTone(now, 880, 0.15);
+              playTone(now + 0.2, 880, 0.15);
+              playTone(now + 0.4, 880, 0.15);
+              playTone(now + 0.8, 880, 0.15);
+              playTone(now + 1.0, 880, 0.15);
+              playTone(now + 1.2, 880, 0.15);
+            } catch (e) {
+              console.error("Audio Context Error: ", e);
+            }
+          };
+
+          // タイマー作動ロジック
+          useEffect(() => {
+            if (isTimerRunning && timerRemaining > 0) {
+              timerRef.current = setInterval(() => {
+                setTimerRemaining(prev => {
+                  if (prev <= 1) {
+                    clearInterval(timerRef.current);
+                    setIsTimerRunning(false);
+                    playBeep();
+                    showToast("⏰ タイマー時間になりました！");
+                    return 0;
+                  }
+                  return prev - 1;
+                });
+              }, 1000);
+            } else {
+              clearInterval(timerRef.current);
+            }
+
+            return () => clearInterval(timerRef.current);
+          }, [isTimerRunning, timerRemaining]);
+
+          const startTimer = (duration) => {
+            setTimerDuration(duration);
+            setTimerRemaining(duration);
+            setIsTimerRunning(true);
+            showToast(`⏱️ ${Math.floor(duration / 60)}分 のタイマーを開始しました`);
+          };
+
+          const toggleTimer = () => {
+            setIsTimerRunning(!isTimerRunning);
+          };
+
+          const resetTimer = () => {
+            setIsTimerRunning(false);
+            setTimerRemaining(0);
+          };
+
+          // 分量の自動計算スケーリング
+          const getScaledAmount = (amount, originalServings, targetServings) => {
+            if (typeof amount !== 'number' || isNaN(amount)) return amount;
+            const value = (amount * targetServings) / originalServings;
+            return Math.round(value * 100) / 100;
+          };
+
+          // お気に入りトグル
+          const toggleFavorite = (recipeId, e) => {
+            if (e) e.stopPropagation();
+            setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, isFavorite: !r.isFavorite } : r));
+            const recipe = recipes.find(r => r.id === recipeId);
+            showToast(recipe.isFavorite ? `🤍 ${recipe.title} をお気に入りから外しました` : `❤️ ${recipe.title} をお気に入りに追加しました`);
+          };
+
+          // レシピ詳細の選択
+          const handleSelectRecipe = (recipe) => {
+            setSelectedRecipe(recipe);
+            setScaleServings(recipe.servings);
+            setActiveStepIndex(0);
+            setCompletedSteps({});
+          };
+
+          // 1週間献立の追加
+          const addRecipeToPlan = (day, mealType, recipeId) => {
+            setMealPlan(prev => ({
+              ...prev,
+              [day]: {
+                ...prev[day],
+                [mealType]: recipeId
+              }
+            }));
+            const r = recipes.find(item => item.id === recipeId);
+            showToast(`📅 ${day}曜日の${mealType}に「${r ? r.title : ''}」を追加しました！`);
+          };
+
+          // 1週間献立の削除
+          const removeRecipeFromPlan = (day, mealType) => {
+            setMealPlan(prev => ({
+              ...prev,
+              [day]: {
+                ...prev[day],
+                [mealType]: null
+              }
+            }));
+            showToast(`📅 ${day}曜日の${mealType}の予定をリセットしました`);
+          };
+
+          // 指定曜日の全レシピの材料をまとめて買い物リストにストック
+          const addPlannedIngredientsToShoppingList = (day) => {
+            const dayMeals = mealPlan[day];
+            let itemsToAdd = [];
+
+            Object.keys(dayMeals).forEach(mealType => {
+              const recId = dayMeals[mealType];
+              if (recId) {
+                const recipe = recipes.find(r => r.id === recId);
+                if (recipe) {
+                  recipe.ingredients.forEach(ing => {
+                    itemsToAdd.push({
+                      name: ing.name,
+                      amount: `${ing.amount}${ing.unit}`
+                    });
+                  });
+                }
+              }
+            });
+
+            if (itemsToAdd.length === 0) {
+              showToast(`⚠️ ${day}曜日に設定された献立がありません。`);
+              return;
+            }
+
+            setShoppingList(prev => {
+              const updated = [...prev];
+              itemsToAdd.forEach(newItem => {
+                const matchIdx = updated.findIndex(i => i.name === newItem.name && !i.checked);
+                if (matchIdx > -1) {
+                  updated[matchIdx].amount = `${updated[matchIdx].amount} + ${newItem.amount}`;
+                } else {
+                  updated.push({
+                    id: `shop-${Date.now()}-${Math.random()}`,
+                    name: newItem.name,
+                    amount: newItem.amount,
+                    checked: false
+                  });
+                }
+              });
+              return updated;
+            });
+
+            showToast(`🛒 ${day}曜日の材料を買い物リストに追加しました！`);
+          };
+
+          // レシピ詳細から買い物リストへ一括追加
+          const addRecipeIngredientsToShoppingList = (recipe, servings) => {
+            setShoppingList(prev => {
+              const updated = [...prev];
+              recipe.ingredients.forEach(ing => {
+                const scaledAmt = getScaledAmount(ing.amount, recipe.servings, servings);
+                const amountStr = typeof scaledAmt === 'number' ? `${scaledAmt}${ing.unit}` : `${ing.amount}${ing.unit}`;
+                
+                updated.push({
+                  id: `shop-${Date.now()}-${Math.random()}`,
+                  name: ing.name,
+                  amount: amountStr,
+                  checked: false
+                });
+              });
+              return updated;
+            });
+            showToast(`🛒 「${recipe.title}」（${servings}人前）の材料を買い物リストに追加しました！`);
+          };
+
+          // 買い物リストのチェック状態切り替え
+          const toggleShoppingChecked = (itemId) => {
+            setShoppingList(prev => prev.map(item => item.id === itemId ? { ...item, checked: !item.checked } : item));
+          };
+
+          // 買い物リストから個別削除
+          const deleteShoppingItem = (itemId) => {
+            setShoppingList(prev => prev.filter(item => item.id !== itemId));
+          };
+
+          // 手動買い物アイテムの追加
+          const handleAddShoppingItem = (e) => {
+            e.preventDefault();
+            if (!newShoppingItem.name.trim()) return;
+
+            setShoppingList(prev => [
+              ...prev,
+              {
+                id: `shop-${Date.now()}`,
+                name: newShoppingItem.name,
+                amount: newShoppingItem.amount || '適量',
+                checked: false
+              }
+            ]);
+            setNewShoppingItem({ name: '', amount: '' });
+            showToast('➕ アイテムを追加しました');
+          };
+
+          // チェック済みを全削除
+          const clearCheckedItems = () => {
+            setShoppingList(prev => prev.filter(item => !item.checked));
+            showToast('🧹 購入済みのアイテムを削除しました');
+          };
+
+          // 自作レシピ作成時の材料行操作
+          const handleAddIngredientRow = () => {
+            setNewRecipe(prev => ({
+              ...prev,
+              ingredients: [...prev.ingredients, { name: '', amount: '', unit: 'g' }]
+            }));
+          };
+
+          const handleRemoveIngredientRow = (index) => {
+            setNewRecipe(prev => ({
+              ...prev,
+              ingredients: prev.ingredients.filter((_, idx) => idx !== index)
+            }));
+          };
+
+          // 自作レシピ作成時の工程行操作
+          const handleAddStepRow = () => {
+            setNewRecipe(prev => ({
+              ...prev,
+              steps: [...prev.steps, { text: '', duration: 120 }]
+            }));
+          };
+
+          const handleRemoveStepRow = (index) => {
+            setNewRecipe(prev => ({
+              ...prev,
+              steps: prev.steps.filter((_, idx) => idx !== index)
+            }));
+          };
+
+          // 自作レシピの保存
+          const handleRecipeSubmit = (e) => {
+            e.preventDefault();
+            if (!newRecipe.title.trim() || newRecipe.ingredients.some(i => !i.name.trim())) {
+              showToast('⚠️ レシピ名とすべての材料名を入力してください。');
+              return;
+            }
+
+            const defaultImage = 'https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&q=80&w=600';
+            const submittedRecipe = {
+              ...newRecipe,
+              id: `rec-${Date.now()}`,
+              prepTime: Number(newRecipe.prepTime),
+              calories: Number(newRecipe.calories),
+              servings: Number(newRecipe.servings),
+              image: newRecipe.image.trim() || defaultImage,
+              ingredients: newRecipe.ingredients.map(ing => ({
+                ...ing,
+                amount: isNaN(Number(ing.amount)) ? ing.amount : Number(ing.amount)
+              })),
+              steps: newRecipe.steps.map(step => ({
+                ...step,
+                duration: Number(step.duration) || 120
+              }))
+            };
+
+            setRecipes(prev => [submittedRecipe, ...prev]);
+            showToast(`🎉 「${submittedRecipe.title}」を保存しました！`);
+            
+            // フォーム初期化
+            setNewRecipe({
+              title: '',
+              category: '和食',
+              description: '',
+              prepTime: 15,
+              difficulty: '簡単',
+              calories: 300,
+              servings: 2,
+              image: '',
+              ingredients: [{ name: '', amount: '', unit: 'g' }],
+              steps: [{ text: '', duration: 120 }]
+            });
+            setActiveTab('explore');
+          };
+
+          // Web Speech APIを用いた模擬音声読み上げ
+          const speakStepText = (text) => {
+            if ('speechSynthesis' in window) {
+              window.speechSynthesis.cancel();
+              const utterance = new SpeechSynthesisUtterance(text);
+              utterance.lang = 'ja-JP';
+              utterance.rate = 1.0;
+              window.speechSynthesis.speak(utterance);
+              showToast('🔊 音声読み上げを開始しました');
+            } else {
+              showToast('⚠️ お使いのブラウザは音声読み上げに対応していません');
+            }
+          };
+
+          // フィルター適用後のレシピ一覧
+          const filteredRecipes = recipes.filter(r => {
+            const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                  r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                  r.ingredients.some(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+            const matchesCategory = selectedCategory === 'すべて' || r.category === selectedCategory;
+            return matchesSearch && matchesCategory;
+          });
+
+          const favoriteRecipes = recipes.filter(r => r.isFavorite);
+
+          return (
+            <div className="min-h-screen bg-amber-50/40 text-slate-800 font-sans pb-24">
+              {/* トーストお知らせ */}
+              {toastMessage && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-amber-900 text-amber-50 px-5 py-3 rounded-full shadow-xl flex items-center gap-2 animate-bounce border border-amber-700/50">
+                  <Icons.Sparkles className="w-5 h-5 text-amber-300" />
+                  <span className="font-medium text-sm">{toastMessage}</span>
+                </div>
+              )}
+
+              {/* ヘッダーエリア */}
+              <header className="sticky top-0 bg-white/95 backdrop-blur-md shadow-sm border-b border-amber-100 z-40 transition-all">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => { setSelectedRecipe(null); setActiveTab('explore'); }}>
+                    <div className="w-10 h-10 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-md shadow-orange-500/20">
+                      <Icons.Utensils className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h1 className="font-black text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
+                        DelishKitchen <span className="text-amber-500 text-xs align-super font-bold">PLUS</span>
+                      </h1>
+                      <p className="text-[10px] text-slate-400 font-medium tracking-wider">SMART COOKING LIFELINE</p>
+                    </div>
+                  </div>
+                  
+                  {/* アラーム動作時表示 */}
+                  {timerRemaining > 0 && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-semibold text-orange-700 shadow-sm animate-pulse">
+                      <Icons.Clock className="w-3.5 h-3.5 text-orange-500" />
+                      <span>
+                        {Math.floor(timerRemaining / 60)}:{(timerRemaining % 60).toString().padStart(2, '0')}
+                      </span>
+                      <button 
+                        onClick={toggleTimer} 
+                        className="hover:scale-110 transition-transform text-orange-600 bg-white p-0.5 rounded-full shadow-xs"
+                      >
+                        {isTimerRunning ? <Icons.Pause className="w-3 h-3" /> : <Icons.Play className="w-3 h-3" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </header>
+
+              <main className="max-w-4xl mx-auto px-4 py-6">
+                {selectedRecipe ? (
+                  /* ========================================================== */
+                  /* レシピ詳細表示 */
+                  /* ========================================================== */
+                  <div className="bg-white rounded-3xl shadow-xl border border-amber-100/60 overflow-hidden animate-fadeIn">
+                    {/* メインのフードイメージ */}
+                    <div className="relative h-64 md:h-80 w-full overflow-hidden">
+                      <img 
+                        src={selectedRecipe.image} 
+                        alt={selectedRecipe.title} 
+                        className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
+                      
+                      {/* 閉じる（戻る）ボタン */}
+                      <button 
+                        onClick={() => setSelectedRecipe(null)}
+                        className="absolute top-4 left-4 bg-white/90 backdrop-blur-xs hover:bg-white text-slate-800 p-2.5 rounded-2xl shadow-lg transition-all"
+                      >
+                        <Icons.ChevronRight className="w-5 h-5 rotate-180" />
+                      </button>
+
+                      {/* お気に入り追加 */}
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        <button 
+                          onClick={(e) => toggleFavorite(selectedRecipe.id, e)}
+                          className="bg-white/90 backdrop-blur-xs hover:bg-white p-2.5 rounded-2xl shadow-lg transition-all"
+                        >
+                          <Icons.Heart className={`w-5 h-5 transition-colors ${selectedRecipe.isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-600'}`} />
+                        </button>
+                      </div>
+
+                      {/* カテゴリ & レシピタイトル */}
+                      <div className="absolute bottom-4 left-4 right-4 text-white">
+                        <span className="bg-orange-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full uppercase tracking-wider mb-2 inline-block">
+                          {selectedRecipe.category}
+                        </span>
+                        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight drop-shadow-md">{selectedRecipe.title}</h2>
+                        <p className="text-slate-200 text-xs md:text-sm mt-1 line-clamp-2 font-light">{selectedRecipe.description}</p>
+                      </div>
+                    </div>
+
+                    {/* スペック要素 */}
+                    <div className="grid grid-cols-3 divide-x divide-slate-100 bg-orange-50/50 py-4 border-b border-amber-100/50 text-center">
+                      <div>
+                        <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">調理時間</span>
+                        <span className="text-slate-700 font-extrabold text-base flex items-center justify-center gap-1">
+                          <Icons.Clock className="w-4 h-4 text-orange-500" />
+                          {selectedRecipe.prepTime}分
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">難易度</span>
+                        <span className="text-slate-700 font-extrabold text-base flex items-center justify-center gap-1">
+                          <Icons.Flame className="w-4 h-4 text-orange-500" />
+                          {selectedRecipe.difficulty}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">カロリー</span>
+                        <span className="text-slate-700 font-extrabold text-base flex items-center justify-center gap-1 text-orange-600">
+                          {selectedRecipe.calories} kcal
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-6 md:p-8 grid md:grid-cols-12 gap-8">
+                      {/* 左セクション：材料分量 */}
+                      <div className="md:col-span-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-extrabold flex items-center gap-1.5 text-slate-800">
+                            <span className="w-1 h-5 bg-orange-500 rounded-full inline-block"></span>
+                            材料リスト
+                          </h3>
+                          
+                          {/* 分量倍数スケール */}
+                          <div className="flex items-center gap-2 bg-slate-100/80 rounded-full p-1 border border-slate-200/50">
+                            <button 
+                              onClick={() => setScaleServings(Math.max(1, scaleServings - 1))}
+                              className="text-slate-600 hover:text-orange-500 transition-colors p-1"
+                            >
+                              <Icons.MinusCircle className="w-5 h-5" />
+                            </button>
+                            <span className="font-bold text-xs text-slate-700 px-1">{scaleServings}人前</span>
+                            <button 
+                              onClick={() => setScaleServings(scaleServings + 1)}
+                              className="text-slate-600 hover:text-orange-500 transition-colors p-1"
+                            >
+                              <Icons.PlusCircle className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50/70 rounded-2xl p-4 border border-slate-100">
+                          <ul className="divide-y divide-slate-100 text-sm">
+                            {selectedRecipe.ingredients.map((ing, idx) => (
+                              <li key={idx} className="py-2.5 flex justify-between items-center text-slate-700">
+                                <span className="font-medium text-slate-800">{ing.name}</span>
+                                <span className="font-bold text-orange-600 text-right bg-white px-2.5 py-0.5 rounded-lg border border-slate-100 shadow-3xs">
+                                  {getScaledAmount(ing.amount, selectedRecipe.servings, scaleServings)}
+                                  <span className="text-slate-400 text-xs font-medium ml-0.5">{ing.unit}</span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+
+                          <button
+                            onClick={() => addRecipeIngredientsToShoppingList(selectedRecipe, scaleServings)}
+                            className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl shadow-md shadow-orange-500/10 transition-all flex items-center justify-center gap-2 text-sm"
+                          >
+                            <Icons.ShoppingBag className="w-4 h-4" />
+                            この材料を買い物リストに追加
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 右セクション：手順進行ガイド */}
+                      <div className="md:col-span-7">
+                        <h3 className="text-lg font-extrabold flex items-center gap-1.5 text-slate-800 mb-4">
+                          <span className="w-1 h-5 bg-orange-500 rounded-full inline-block"></span>
+                          作り方の工程
+                        </h3>
+
+                        <div className="space-y-4">
+                          {selectedRecipe.steps.map((step, idx) => {
+                            const isCurrent = activeStepIndex === idx;
+                            const isCompleted = completedSteps[idx];
+                            return (
+                              <div 
+                                key={idx}
+                                onClick={() => setActiveStepIndex(idx)}
+                                className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                                  isCurrent 
+                                    ? 'bg-amber-50/60 border-orange-300 ring-2 ring-orange-500/10 shadow-sm' 
+                                    : isCompleted 
+                                      ? 'bg-slate-50/50 border-slate-200 opacity-65' 
+                                      : 'bg-white border-slate-100 hover:border-slate-200'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                      isCompleted 
+                                        ? 'bg-emerald-500 text-white' 
+                                        : 'bg-orange-500 text-white'
+                                    }`}>
+                                      {idx + 1}
+                                    </span>
+                                    <span className="font-bold text-xs text-slate-400">STEP</span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {/* 音声ガイド */}
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); speakStepText(step.text); }}
+                                      className="text-slate-400 hover:text-orange-500 p-1.5 rounded-full hover:bg-slate-100 transition-all"
+                                      title="音声を読み上げる"
+                                    >
+                                      <Icons.Volume2 className="w-4 h-4" />
+                                    </button>
+
+                                    {/* 推奨タイマーをその場でスタート */}
+                                    {step.duration > 0 && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); startTimer(step.duration); }}
+                                        className="bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-600 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all"
+                                      >
+                                        <Icons.Clock className="w-3 h-3" />
+                                        {Math.floor(step.duration / 60)}分タイマー
+                                      </button>
+                                    )}
+
+                                    {/* 完了チェック */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCompletedSteps(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                      }}
+                                      className={`p-1.5 rounded-full border transition-all ${
+                                        isCompleted 
+                                          ? 'bg-emerald-50 border-emerald-300 text-emerald-600' 
+                                          : 'border-slate-200 text-slate-400 hover:border-emerald-300 hover:text-emerald-500'
+                                      }`}
+                                    >
+                                      <Icons.Check className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <p className={`text-sm leading-relaxed ${isCompleted ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}`}>
+                                  {step.text}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* キッチンタイマー調整ボード */}
+                        <div className="mt-6 bg-slate-900 text-white rounded-2xl p-5 border border-slate-800 shadow-lg">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                              <Icons.Clock className="w-3.5 h-3.5 text-orange-400" />
+                              キッチンタイマー
+                            </span>
+                            {timerRemaining > 0 && (
+                              <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-0.5 rounded-full font-bold">
+                                {isTimerRunning ? 'カウントダウン中' : '一時停止中'}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="text-center sm:text-left">
+                              <div className="text-3xl md:text-4xl font-mono font-bold text-orange-400 tracking-wider">
+                                {Math.floor(timerRemaining / 60).toString().padStart(2, '0')}:{(timerRemaining % 60).toString().padStart(2, '0')}
+                              </div>
+                              <p className="text-[10px] text-slate-400 mt-1">
+                                設定時間: {timerDuration > 0 ? `${Math.floor(timerDuration / 60)}分00秒` : 'なし'}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => startTimer(180)}
+                                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-700"
+                              >
+                                + 3分
+                              </button>
+                              <button 
+                                onClick={() => startTimer(300)}
+                                className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-700"
+                              >
+                                + 5分
+                              </button>
+                              
+                              {timerRemaining > 0 && (
+                                <>
+                                  <button 
+                                    onClick={toggleTimer}
+                                    className={`p-2.5 rounded-xl text-white font-bold transition-all shadow-md ${
+                                      isTimerRunning ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                                    }`}
+                                  >
+                                    {isTimerRunning ? <Icons.Pause className="w-4 h-4" /> : <Icons.Play className="w-4 h-4" />}
+                                  </button>
+                                  <button 
+                                    onClick={resetTimer}
+                                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl border border-slate-700 transition-all"
+                                  >
+                                    <Icons.RotateCcw className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ========================================================== */
+                  /* 通常のタブメニューコンテンツ */
+                  /* ========================================================== */
+                  <>
+                    {/* レシピ検索タブ */}
+                    {activeTab === 'explore' && (
+                      <div className="space-y-6">
+                        {/* サーチバー */}
+                        <div className="relative">
+                          <Icons.Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                          <input 
+                            type="text" 
+                            placeholder="レシピ名、食材、キーワードで検索..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-white border border-amber-100 rounded-2xl pl-12 pr-4 py-4 shadow-sm focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 text-sm font-medium transition-all"
+                          />
+                          {searchQuery && (
+                            <button 
+                              onClick={() => setSearchQuery('')}
+                              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                            >
+                              クリア
+                            </button>
+                          )}
+                        </div>
+
+                        {/* カテゴリ切り替えボタン */}
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                          {['すべて', '和食', '洋食', '中華', 'スイーツ'].map(cat => (
+                            <button
+                              key={cat}
+                              onClick={() => setSelectedCategory(cat)}
+                              className={`px-4 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all border ${
+                                selectedCategory === cat 
+                                  ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/10' 
+                                  : 'bg-white border-amber-100 text-slate-600 hover:bg-orange-50/50'
+                              }`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* レシピグリッド表示 */}
+                        <div className="grid sm:grid-cols-2 gap-6">
+                          {filteredRecipes.length > 0 ? (
+                            filteredRecipes.map(recipe => (
+                              <div 
+                                key={recipe.id}
+                                onClick={() => handleSelectRecipe(recipe)}
+                                className="bg-white rounded-2xl overflow-hidden border border-amber-100/60 shadow-xs hover:shadow-lg transition-all cursor-pointer group flex flex-col h-full"
+                              >
+                                <div className="relative h-44 overflow-hidden">
+                                  <img 
+                                    src={recipe.image} 
+                                    alt={recipe.title} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+                                  
+                                  <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs text-slate-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-xs">
+                                    {recipe.category}
+                                  </span>
+
+                                  <button 
+                                    onClick={(e) => toggleFavorite(recipe.id, e)}
+                                    className="absolute top-3 right-3 bg-white/90 backdrop-blur-xs p-2 rounded-full shadow-xs hover:scale-110 transition-transform"
+                                  >
+                                    <Icons.Heart className={`w-4 h-4 ${recipe.isFavorite ? 'fill-red-500 text-red-500' : 'text-slate-500'}`} />
+                                  </button>
+                                </div>
+
+                                <div className="p-4 flex-1 flex flex-col justify-between">
+                                  <div>
+                                    <h3 className="font-extrabold text-slate-800 text-base mb-1.5 group-hover:text-orange-500 transition-colors line-clamp-1">
+                                      {recipe.title}
+                                    </h3>
+                                    <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed font-medium">
+                                      {recipe.description}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center justify-between text-slate-500 text-[11px] border-t border-slate-50 pt-3">
+                                    <span className="flex items-center gap-1 font-bold">
+                                      <Icons.Clock className="w-3.5 h-3.5 text-orange-400" />
+                                      {recipe.prepTime}分
+                                    </span>
+                                    <span className="font-bold flex items-center gap-0.5">
+                                      <Icons.Flame className="w-3.5 h-3.5 text-orange-400" />
+                                      {recipe.difficulty}
+                                    </span>
+                                    <span className="font-bold text-orange-600">
+                                      {recipe.calories} kcal
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-amber-200">
+                              <p className="text-slate-400 text-sm font-medium">該当するレシピが見つかりませんでした。</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* お気に入りレシピタブ */}
+                    {activeTab === 'favorites' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-6 bg-red-500 rounded-full"></div>
+                          <h2 className="text-lg font-black text-slate-800">お気に入りレシピ</h2>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-6">
+                          {favoriteRecipes.length > 0 ? (
+                            favoriteRecipes.map(recipe => (
+                              <div 
+                                key={recipe.id}
+                                onClick={() => handleSelectRecipe(recipe)}
+                                className="bg-white rounded-2xl overflow-hidden border border-amber-100/60 shadow-xs hover:shadow-lg transition-all cursor-pointer group flex flex-col h-full"
+                              >
+                                <div className="relative h-44 overflow-hidden">
+                                  <img 
+                                    src={recipe.image} 
+                                    alt={recipe.title} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+                                  <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs text-slate-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-xs">
+                                    {recipe.category}
+                                  </span>
+                                  <button 
+                                    onClick={(e) => toggleFavorite(recipe.id, e)}
+                                    className="absolute top-3 right-3 bg-white/90 backdrop-blur-xs p-2 rounded-full shadow-xs"
+                                  >
+                                    <Icons.Heart className="w-4 h-4 fill-red-500 text-red-500" />
+                                  </button>
+                                </div>
+                                <div className="p-4 flex-1 flex flex-col justify-between">
+                                  <div>
+                                    <h3 className="font-extrabold text-slate-800 text-base mb-1.5 group-hover:text-orange-500 transition-colors line-clamp-1">
+                                      {recipe.title}
+                                    </h3>
+                                    <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed font-medium">
+                                      {recipe.description}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center justify-between text-slate-500 text-[11px] border-t border-slate-50 pt-3">
+                                    <span className="flex items-center gap-1 font-bold">
+                                      <Icons.Clock className="w-3.5 h-3.5 text-orange-400" />
+                                      {recipe.prepTime}分
+                                    </span>
+                                    <span className="font-bold">{recipe.difficulty}</span>
+                                    <span className="font-bold text-orange-600">{recipe.calories} kcal</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+                              <Icons.Heart className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                              <p className="text-slate-500 font-bold text-sm mb-1">お気に入りはまだありません</p>
+                              <p className="text-slate-400 text-xs">レシピのハートを押してお気に入り登録してみましょう！</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 献立プランナータブ */}
+                    {activeTab === 'planner' && (
+                      <div className="space-y-6">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-6 bg-orange-500 rounded-full"></div>
+                            <h2 className="text-lg font-black text-slate-800">1週間の献立プランナー</h2>
+                          </div>
+                          <span className="text-xs text-slate-500 font-medium">曜日ごとに朝・昼・晩を自由に計画</span>
+                        </div>
+
+                        <div className="space-y-4">
+                          {WEEK_DAYS.map(day => (
+                            <div key={day} className="bg-white rounded-2xl p-4 border border-amber-100/50 shadow-xs">
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 font-black flex items-center justify-center text-sm shadow-3xs">
+                                    {day}
+                                  </span>
+                                  <span className="font-bold text-sm text-slate-700">曜日の献立</span>
+                                </div>
+                                <button 
+                                  onClick={() => addPlannedIngredientsToShoppingList(day)}
+                                  className="text-xs text-orange-600 hover:text-orange-700 bg-orange-50 px-3 py-1.5 rounded-lg font-extrabold flex items-center gap-1 transition-colors"
+                                >
+                                  <Icons.ShoppingBag className="w-3 h-3" />
+                                  この日の食材を一括ストック
+                                </button>
+                              </div>
+
+                              <div className="grid sm:grid-cols-3 gap-3">
+                                {MEAL_TYPES.map(type => {
+                                  const plannedRecipeId = mealPlan[day][type];
+                                  const matchedRecipe = recipes.find(r => r.id === plannedRecipeId);
+
+                                  return (
+                                    <div key={type} className="bg-slate-50/70 p-3 rounded-xl border border-slate-100 flex flex-col justify-between min-h-24">
+                                      <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider mb-2 block">{type}</span>
+                                      
+                                      {matchedRecipe ? (
+                                        <div>
+                                          <h4 className="font-bold text-xs text-slate-800 line-clamp-1 mb-1">{matchedRecipe.title}</h4>
+                                          <p className="text-[10px] text-slate-400 font-semibold mb-2">{matchedRecipe.prepTime}分 | {matchedRecipe.calories}kcal</p>
+                                          
+                                          <div className="flex justify-between items-center mt-auto">
+                                            <button 
+                                              onClick={() => handleSelectRecipe(matchedRecipe)}
+                                              className="text-[10px] text-orange-600 font-bold hover:underline animate-pulse"
+                                            >
+                                              調理開始
+                                            </button>
+                                            <button 
+                                              onClick={() => removeRecipeFromPlan(day, type)}
+                                              className="text-slate-400 hover:text-rose-500 p-1 rounded-sm"
+                                            >
+                                              <Icons.Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex-1 flex flex-col justify-center items-center">
+                                          <select 
+                                            onChange={(e) => {
+                                              if (e.target.value) {
+                                                addRecipeToPlan(day, type, e.target.value);
+                                                e.target.value = '';
+                                              }
+                                            }}
+                                            className="w-full text-xs bg-white border border-slate-200 rounded-lg p-1.5 focus:outline-hidden text-slate-500 font-bold cursor-pointer"
+                                            defaultValue=""
+                                          >
+                                            <option value="" disabled>+ レシピ追加</option>
+                                            {recipes.map(r => (
+                                              <option key={r.id} value={r.id}>{r.title}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 買い物リストタブ */}
+                    {activeTab === 'shopping' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-6 bg-orange-500 rounded-full"></div>
+                            <h2 className="text-lg font-black text-slate-800">買い物リスト</h2>
+                          </div>
+                          {shoppingList.some(item => item.checked) && (
+                            <button 
+                              onClick={clearCheckedItems}
+                              className="text-xs text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 transition-colors"
+                            >
+                              <Icons.Trash2 className="w-3.5 h-3.5" />
+                              購入済みを消去
+                            </button>
+                          )}
+                        </div>
+
+                        {/* 新規アイテム追加フォーム */}
+                        <form onSubmit={handleAddShoppingItem} className="bg-white rounded-2xl p-4 border border-amber-100/50 shadow-xs flex flex-col sm:flex-row gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="買うもの (例: 玉ねぎ)" 
+                            value={newShoppingItem.name}
+                            onChange={(e) => setNewShoppingItem(prev => ({ ...prev, name: e.target.value }))}
+                            className="flex-1 text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500"
+                          />
+                          <input 
+                            type="text" 
+                            placeholder="分量・数量 (例: 2個)" 
+                            value={newShoppingItem.amount}
+                            onChange={(e) => setNewShoppingItem(prev => ({ ...prev, amount: e.target.value }))}
+                            className="sm:w-1/4 text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500"
+                          />
+                          <button 
+                            type="submit"
+                            className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl flex items-center justify-center gap-1 shadow-sm transition-all"
+                          >
+                            <Icons.Plus className="w-4 h-4" />
+                            追加
+                          </button>
+                        </form>
+
+                        {/* ストック材料リスト表示 */}
+                        <div className="bg-white rounded-2xl border border-amber-100/50 overflow-hidden shadow-xs">
+                          {shoppingList.length > 0 ? (
+                            <div className="divide-y divide-slate-100">
+                              {shoppingList.map(item => (
+                                <div 
+                                  key={item.id} 
+                                  className={`p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors ${
+                                    item.checked ? 'bg-slate-50/80 opacity-60' : ''
+                                  }`}
+                                >
+                                  <div 
+                                    onClick={() => toggleShoppingChecked(item.id)}
+                                    className="flex items-center gap-3 cursor-pointer flex-1"
+                                  >
+                                    <div className={`w-5.5 h-5.5 rounded-lg border flex items-center justify-center transition-all ${
+                                      item.checked 
+                                        ? 'bg-emerald-500 border-emerald-500 text-white' 
+                                        : 'border-slate-300 text-transparent'
+                                    }`}>
+                                      <Icons.Check className="w-3.5 h-3.5 stroke-[3]" />
+                                    </div>
+                                    <div>
+                                      <span className={`text-sm font-bold ${item.checked ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                                        {item.name}
+                                      </span>
+                                      <span className="text-xs font-semibold text-slate-400 ml-2">({item.amount})</span>
+                                    </div>
+                                  </div>
+
+                                  <button 
+                                    onClick={() => deleteShoppingItem(item.id)}
+                                    className="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                                  >
+                                    <Icons.Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="py-12 text-center text-slate-400">
+                              <Icons.ShoppingBag className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                              <p className="font-bold text-sm mb-1">買い物リストは空です</p>
+                              <p className="text-xs">献立や各レシピ手順内から必要な材料を追加できます。</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* マイレシピ作成タブ */}
+                    {activeTab === 'create' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-6 bg-orange-500 rounded-full"></div>
+                          <h2 className="text-lg font-black text-slate-800">マイレシピの作成</h2>
+                        </div>
+
+                        <form onSubmit={handleRecipeSubmit} className="space-y-6 bg-white rounded-3xl p-6 md:p-8 border border-amber-100/50 shadow-xs">
+                          {/* 名前・ジャンル */}
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-extrabold text-slate-500">レシピ名 *</label>
+                              <input 
+                                type="text" 
+                                required
+                                placeholder="例: ふんわり豆腐ハンバーグ" 
+                                value={newRecipe.title}
+                                onChange={(e) => setNewRecipe(prev => ({ ...prev, title: e.target.value }))}
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 font-medium"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-extrabold text-slate-500">ジャンル *</label>
+                              <select 
+                                value={newRecipe.category}
+                                onChange={(e) => setNewRecipe(prev => ({ ...prev, category: e.target.value }))}
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 font-bold text-slate-600"
+                              >
+                                <option>和食</option>
+                                <option>洋食</option>
+                                <option>中華</option>
+                                <option>スイーツ</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-extrabold text-slate-500">レシピの一言コメント</label>
+                            <textarea 
+                              placeholder="おいしく仕上げるコツなど一言..." 
+                              value={newRecipe.description}
+                              onChange={(e) => setNewRecipe(prev => ({ ...prev, description: e.target.value }))}
+                              className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 h-20 resize-none font-medium"
+                            />
+                          </div>
+
+                          {/* カロリーや基準ボリューム */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-extrabold text-slate-500">調理時間 (分)</label>
+                              <input 
+                                type="number" 
+                                value={newRecipe.prepTime}
+                                onChange={(e) => setNewRecipe(prev => ({ ...prev, prepTime: e.target.value }))}
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-extrabold text-slate-500">カロリー (kcal)</label>
+                              <input 
+                                type="number" 
+                                value={newRecipe.calories}
+                                onChange={(e) => setNewRecipe(prev => ({ ...prev, calories: e.target.value }))}
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-extrabold text-slate-500">基準人数 (人前)</label>
+                              <input 
+                                type="number" 
+                                value={newRecipe.servings}
+                                onChange={(e) => setNewRecipe(prev => ({ ...prev, servings: e.target.value }))}
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 font-bold"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-extrabold text-slate-500">難易度</label>
+                              <select 
+                                value={newRecipe.difficulty}
+                                onChange={(e) => setNewRecipe(prev => ({ ...prev, difficulty: e.target.value }))}
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 font-bold text-slate-600"
+                              >
+                                <option>簡単</option>
+                                <option>普通</option>
+                                <option>プロ級</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-extrabold text-slate-500">イメージ画像URL (任意)</label>
+                            <input 
+                              type="url" 
+                              placeholder="https://images.unsplash.com/photo-..." 
+                              value={newRecipe.image}
+                              onChange={(e) => setNewRecipe(prev => ({ ...prev, image: e.target.value }))}
+                              className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-hidden focus:ring-1 focus:ring-orange-500 text-slate-600 font-mono"
+                            />
+                          </div>
+
+                          {/* 材料の動的生成行 */}
+                          <div className="space-y-3 pt-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                                <span className="w-1 h-4 bg-orange-500 rounded-full inline-block"></span>
+                                材料・調味料
+                              </span>
+                              <button 
+                                type="button"
+                                onClick={handleAddIngredientRow}
+                                className="text-xs text-orange-600 hover:text-orange-700 font-bold flex items-center gap-0.5"
+                              >
+                                <Icons.Plus className="w-3.5 h-3.5" />
+                                行を追加
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              {newRecipe.ingredients.map((ing, idx) => (
+                                <div key={idx} className="flex gap-2 items-center">
+                                  <input 
+                                    type="text" 
+                                    required
+                                    placeholder="材料名 (例: じゃがいも)" 
+                                    value={ing.name}
+                                    onChange={(e) => {
+                                      const updated = [...newRecipe.ingredients];
+                                      updated[idx].name = e.target.value;
+                                      setNewRecipe(prev => ({ ...prev, ingredients: updated }));
+                                    }}
+                                    className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-hidden font-medium"
+                                  />
+                                  <input 
+                                    type="text" 
+                                    required
+                                    placeholder="分量 (例: 3)" 
+                                    value={ing.amount}
+                                    onChange={(e) => {
+                                      const updated = [...newRecipe.ingredients];
+                                      updated[idx].amount = e.target.value;
+                                      setNewRecipe(prev => ({ ...prev, ingredients: updated }));
+                                    }}
+                                    className="w-20 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-hidden font-bold"
+                                  />
+                                  <input 
+                                    type="text" 
+                                    placeholder="単位 (例: 個)" 
+                                    value={ing.unit}
+                                    onChange={(e) => {
+                                      const updated = [...newRecipe.ingredients];
+                                      updated[idx].unit = e.target.value;
+                                      setNewRecipe(prev => ({ ...prev, ingredients: updated }));
+                                    }}
+                                    className="w-16 text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-hidden font-medium"
+                                  />
+                                  {newRecipe.ingredients.length > 1 && (
+                                    <button 
+                                      type="button" 
+                                      onClick={() => handleRemoveIngredientRow(idx)}
+                                      className="text-slate-300 hover:text-rose-500 p-1"
+                                    >
+                                      <Icons.Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* 手順の動的生成行 */}
+                          <div className="space-y-3 pt-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                                <span className="w-1 h-4 bg-orange-500 rounded-full inline-block"></span>
+                                作り方の手順
+                              </span>
+                              <button 
+                                type="button"
+                                onClick={handleAddStepRow}
+                                className="text-xs text-orange-600 hover:text-orange-700 font-bold flex items-center gap-0.5"
+                              >
+                                <Icons.Plus className="w-3.5 h-3.5" />
+                                工程を追加
+                              </button>
+                            </div>
+
+                            <div className="space-y-3">
+                              {newRecipe.steps.map((step, idx) => (
+                                <div key={idx} className="space-y-1.5 p-3.5 bg-slate-50/70 rounded-xl border border-slate-100 relative">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="text-xs font-bold text-slate-400">工程 {idx + 1}</span>
+                                    {newRecipe.steps.length > 1 && (
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleRemoveStepRow(idx)}
+                                        className="text-slate-300 hover:text-rose-500 p-1 absolute top-2 right-2"
+                                      >
+                                        <Icons.Trash2 className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                  
+                                  <textarea 
+                                    required
+                                    placeholder="この工程で行う作業を記載..." 
+                                    value={step.text}
+                                    onChange={(e) => {
+                                      const updated = [...newRecipe.steps];
+                                      updated[idx].text = e.target.value;
+                                      setNewRecipe(prev => ({ ...prev, steps: updated }));
+                                    }}
+                                    className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2.5 focus:outline-hidden h-16 resize-none font-medium text-slate-700"
+                                  />
+
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-slate-400">この工程の推奨タイマー (秒):</span>
+                                    <input 
+                                      type="number" 
+                                      placeholder="例: 120" 
+                                      value={step.duration}
+                                      onChange={(e) => {
+                                        const updated = [...newRecipe.steps];
+                                        updated[idx].duration = e.target.value;
+                                        setNewRecipe(prev => ({ ...prev, steps: updated }));
+                                      }}
+                                      className="w-24 text-xs bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-hidden font-bold"
+                                    />
+                                    <span className="text-[10px] text-slate-400 font-bold">秒</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button 
+                            type="submit"
+                            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-3.5 rounded-2xl shadow-md shadow-orange-500/10 transition-all flex items-center justify-center gap-2"
+                          >
+                            <Icons.Edit3 className="w-5 h-5" />
+                            このオリジナルレシピを保存
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </>
+                )}
+              </main>
+
+              {/* スマートフォンライクなボトムタブナビゲーション */}
+              <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-amber-100 shadow-xl z-40">
+                <div className="max-w-4xl mx-auto px-4 py-2 flex justify-around items-center">
+                  <button 
+                    onClick={() => { setSelectedRecipe(null); setActiveTab('explore'); }}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${
+                      activeTab === 'explore' && !selectedRecipe ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <Icons.BookOpen className="w-5.5 h-5.5" />
+                    <span className="text-[9px] font-extrabold tracking-wider">探す</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { setSelectedRecipe(null); setActiveTab('favorites'); }}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${
+                      activeTab === 'favorites' ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <Icons.Heart className="w-5.5 h-5.5" />
+                    <span className="text-[9px] font-extrabold tracking-wider">お気に入り</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { setSelectedRecipe(null); setActiveTab('planner'); }}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${
+                      activeTab === 'planner' ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <Icons.Calendar className="w-5.5 h-5.5" />
+                    <span className="text-[9px] font-extrabold tracking-wider">献立プラン</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { setSelectedRecipe(null); setActiveTab('shopping'); }}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${
+                      activeTab === 'shopping' ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <Icons.ShoppingBag className="w-5.5 h-5.5" />
+                    <span className="text-[9px] font-extrabold tracking-wider">買い物リスト</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { setSelectedRecipe(null); setActiveTab('create'); }}
+                    className={`flex flex-col items-center gap-1 p-2 transition-all ${
+                      activeTab === 'create' ? 'text-orange-500 scale-105' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <Icons.Plus className="w-5.5 h-5.5 bg-orange-100 text-orange-600 rounded-lg p-0.5" />
+                    <span className="text-[9px] font-extrabold tracking-wider">マイレシピ</span>
+                  </button>
+                </div>
+              </nav>
+            </div>
+          );
+        }
+
+        // React アプリケーションのレンダリング
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
